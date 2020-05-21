@@ -1,2 +1,18 @@
 # homebridge-hlsmartcontrol
-A homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/)
+A homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/).
+
+This plugin is also published on npm like regular plugins, so you can easily run them in your 
+local homebridge instance. Install it as usual.
+
+The plugin is written in Typescript and require at least homebridge v1.0.0. It is a fork of the 
+[homebridge example accessory](https://github.com/homebridge/homebridge-examples/tree/master/accessory-example-typescript).
+To build the plugin run the following commands in the main plugin directory (this directory).
+
+Run this command once to install all dependencies required by the plugin:
+
+    npm install
+
+After that run the following command to compile the Typescript files into Javascript (repeat this step every time 
+you change something in the code).
+
+    npm run build
