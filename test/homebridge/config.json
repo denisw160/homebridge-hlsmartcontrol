@@ -1,0 +1,15 @@
+{
+  "bridge": {
+    "name": "Homebridge-Test",
+    "username": "CC:00:00:00:00:00",
+    "port": 51826,
+    "pin": "123-45-678"
+  },
+  "accessories": [
+    {
+      "accessory": "HLSmartControl",
+      "name": "HeliaLux SmartControl"
+    }
+  ],
+  "platforms": []
+}

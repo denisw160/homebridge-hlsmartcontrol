@@ -8,15 +8,19 @@
       "ES2017",
       "ES2018"
     ],
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
-    "rootDir": "src",
-    "outDir": "dist",
-
+    "outDir": "./dist",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "noImplicitAny": false
   },
   "include": [
-    "src"
+    "src/"
+  ],
+  "exclude": [
+    "**/*.spec.ts"
   ]
 }
