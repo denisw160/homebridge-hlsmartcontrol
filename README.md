@@ -1,4 +1,7 @@
 # homebridge-hlsmartcontrol
+
+![Build and Lint](https://github.com/denisw160/homebridge-hlsmartcontrol/workflows/Build%20and%20Lint/badge.svg)
+
 A homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/).
 
 This plugin is also published on npm like regular plugins, so you can easily run them in your 
