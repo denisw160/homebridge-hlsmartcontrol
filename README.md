@@ -9,7 +9,8 @@ local homebridge instance. Install it as usual.
 
 The plugin is written in Typescript and require at least homebridge v1.0.0. It is a fork of the 
 [homebridge example accessory](https://github.com/homebridge/homebridge-examples/tree/master/accessory-example-typescript).
-To build the plugin run the following commands in the main plugin directory (this directory).
+To build the plugin run the following commands in the main plugin directory (this directory). The template for
+a Homebridge plugin can found in this [repo](https://github.com/homebridge/homebridge-plugin-template).
 
 Run this command once to install all dependencies required by the plugin:
 
