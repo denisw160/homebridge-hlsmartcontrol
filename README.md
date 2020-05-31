@@ -21,6 +21,21 @@ you change something in the code).
 
     npm run build
 
+## Add the plugin to your Homebridge config
+
+Add a new accessory to your Homebridge configuration. The plug has the following options:
+
+    "accessories": [
+        {
+          "accessory": "HLSmartControl",
+          "name": "HeliaLux SmartControl"
+        }
+      ],
+
+### Options
+TODO describe the options
+ - Name: Name of the plugin show in your Homekit
+
 ## Link To your Homebridge (for developing)
 
 Run this command that Homebridge can discover the plugin in your development environment:
