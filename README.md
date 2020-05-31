@@ -20,3 +20,28 @@ After that run the following command to compile the Typescript files into Javasc
 you change something in the code).
 
     npm run build
+
+## Link To your Homebridge (for developing)
+
+Run this command that Homebridge can discover the plugin in your development environment:
+
+    npm run link
+
+You can now start developing Homebridge instance with this command:
+
+    npm run homebridge
+
+Make sure that your Homebridge configuration exists in your home (`~/.homebridge/config.json`). You found a sample
+under `test/homebridge/config.json`.
+
+## Watch For Changes and Build Automatically
+
+If you want to have your code compile automatically as you make changes, and restart Homebridge automatically 
+between changes you can run:
+
+    npm run watch
+
+This will launch an instance of Homebridge in debug mode which will restart every time you make a change to 
+the source code. It will the config stored in the default location under `~/.homebridge`. You may need to stop 
+other running instances of Homebridge while using this command to prevent conflicts. You can adjust the 
+Homebridge startup command in the `nodemon.json` file.
