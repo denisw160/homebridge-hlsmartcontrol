@@ -1,5 +1,5 @@
 {
-  "private": true,
+  "private": false,
   "displayName": "HeliaLux SmartControl",
   "name": "homebridge-hlsmartcontrol",
   "version": "0.0.1",
