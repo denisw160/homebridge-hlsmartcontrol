@@ -10,8 +10,7 @@ import {
   Logging,
   Service,
 } from 'homebridge';
-
-const axios = require('axios');
+import axios = require('axios');
 
 /**
  *
@@ -50,6 +49,12 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private readonly switchService: Service;
   private readonly informationService: Service;
 
+  /**
+   * Create the plugin instance and initialize settings.
+   * @param log Logging from Homebridge
+   * @param config configuration of the pluginx
+   * @param api API from Homebridge
+   */
   constructor(log: Logging, config: AccessoryConfig, api: API) {
     this.log = log;
     this.api = api;
@@ -65,8 +70,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
         this.resolveLightState(callback);
       })
       .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-        let v = value as boolean;
-        this.setLightState(v, callback);
+        const v = value as boolean;
+        this.switchLightState(v, callback);
       });
 
     this.informationService = new hap.Service.AccessoryInformation()
@@ -76,7 +81,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     log.info('HeliaLux SmartControl finished initializing!');
   }
 
-  /*
+  /**
    * This method is optional to implement. It is called when HomeKit ask to identify the accessory.
    * Typical this only ever happens at the pairing process.
    */
@@ -84,7 +89,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     this.log.info('Identify: {}', this.name);
   }
 
-  /*
+  /**
    * This method is called directly after creation of this instance.
    * It should return all services which should be added to the accessory.
    */
@@ -95,30 +100,26 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     ];
   }
 
-  resolveLightState(callback: CharacteristicGetCallback): void {
+  /**
+   * Query the light status from SmartControl.
+   * @param callback if success, call this callback and inform Homebridge
+   */
+  private resolveLightState(callback: CharacteristicGetCallback): void {
     // Query status of the light
     const url = 'http://' + this.host + ':' + this.port + '/stat';
     axios.default.post(url, 'action=10', {
       timeout: this.timeout,
       headers: {
-        'Content-type': 'application/x-www-form-urlencoded'
-      }
+        'Content-type': 'application/x-www-form-urlencoded',
+      },
     })
       .then((response) => {
         // handle success
         const data = response.data;
-        if (this.debug) {
-          this.log.info("************ start request *****************************");
-          if (data instanceof Object) {
-            this.log.info("data: " + JSON.stringify(data));
-          } else {
-            this.log.info("data: " + data);
-          }
-          this.log.info("************ end request *******************************");
-        }
+        this.logResponse('resolveLightState', data);
 
         // Calculate light state
-        let light: number = 0;
+        let light = 0;
         try {
           if (data instanceof Object) {
             data.C.ch.forEach((i) => {
@@ -126,28 +127,128 @@ class HLSmartControlSwitch implements AccessoryPlugin {
             });
           }
         } catch (e) {
-          this.log.error("Unable to calculate light state: " + e)
+          this.log.error('Unable to calculate light state: ' + e);
         }
 
         // Update light state
         this.switchOn = light > 0;
 
         // Inform Homebridge
-        this.log.info('Current state of the switch was returned: ' + (this.switchOn ? 'ON' : 'OFF'));
+        this.log.info('Current state of the light was returned: ' + (this.switchOn ? 'ON' : 'OFF'));
         callback(undefined, this.switchOn);
       })
       .catch((error) => {
         // handle error
-        this.log.error("Error during query for light state: " + error);
+        this.log.error('Error during query for light state: ' + error);
       });
   }
 
-  setLightState(value: boolean, callback: CharacteristicSetCallback): void {
-    // TODO Implement set light
-    this.switchOn = value;
+  /**
+   * Switch the light state. The SmartControl is turn in manual mode for 1h.
+   * The the color of the HeliaLux SmartControl is set 100% (on) or to 0% (off).
+   * @param value State for the light.
+   * @param callback if success, call this callback and inform Homebridge
+   */
+  private switchLightState(value: boolean, callback: CharacteristicSetCallback): void {
+    const url = 'http://' + this.host + ':' + this.port + '/stat';
+    axios.default.post(url, 'action=14&cswi=true&ctime=01:00', {
+      timeout: this.timeout,
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded',
+      },
+    })
+      .then((response) => {
+        // handle success
+        const data = response.data;
+        this.logResponse('turnOnManualControl', data);
 
-    this.log.info('Switch state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
-    callback();
+        if (this.switchOn) {
+          this.log.info('Turning light off');
+          // this.turnOnManualControl(this.turnOffLight.bind(this), callback);
+          this.turnOffLight(callback);
+        } else {
+          this.log.info('Turning light on');
+          // this.turnOnManualControl(this.turnOnLight.bind(this), callback);
+          this.turnOnLight(callback);
+        }
+      })
+      .catch((error) => {
+        // handle error
+        this.log.error('Error during turn on manual mode: ' + error);
+      });
+  }
+
+  /**
+   * Turn the color to 100%.
+   * @param callback if success, call this callback and inform Homebridge
+   */
+  private turnOnLight(callback: CharacteristicSetCallback): void {
+    const url = 'http://' + this.host + ':' + this.port + '/color';
+    axios.default.post(url, 'action=1&ch1=100&ch2=100&ch3=100&ch4=100', {
+      timeout: this.timeout,
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded',
+      },
+    })
+      .then((response) => {
+        // handle success
+        const data = response.data;
+        this.logResponse('turnOnLight', data);
+
+        // Update state and inform Homebridge
+        this.switchOn = true;
+        this.log.info('Switch light state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
+        callback();
+      })
+      .catch((error) => {
+        // handle error
+        this.log.error('Error during turn on lights: ' + error);
+      });
+  }
+
+  /**
+   * Turn the color to 0%.
+   * @param callback if success, call this callback and inform Homebridge
+   */
+  private turnOffLight(callback: CharacteristicSetCallback): void {
+    const url = 'http://' + this.host + ':' + this.port + '/color';
+    axios.default.post(url, 'action=1&ch1=0&ch2=0&ch3=0&ch4=0', {
+      timeout: this.timeout,
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded',
+      },
+    })
+      .then((response) => {
+        // handle success
+        const data = response.data;
+        this.logResponse('turnOffLight', data);
+
+        // Update state and inform Homebridge
+        this.switchOn = true;
+        this.log.info('Switch light state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
+        callback();
+      })
+      .catch((error) => {
+        // handle error
+        this.log.error('Error during turn off lights: ' + error);
+      });
+  }
+
+  /**
+   * Log received response from the server.
+   * @param name name for the request
+   * @param data data in response
+   */
+  private logResponse(name: string, data) {
+    if (this.debug) {
+      this.log.info('************ ' + name + ' start request *****************************');
+      if (data instanceof Object) {
+        this.log.info('data: ' + JSON.stringify(data));
+      } else {
+        this.log.info('data: ' + data);
+      }
+      this.log.info('************ ' + name + ' end request *******************************');
+    }
   }
 
 }

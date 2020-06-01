@@ -11,7 +11,7 @@
       "name": "HeliaLux SmartControl",
       "debug": true,
       "timeout": 500,
-      "host": "192.168.0.x",
+      "host": "127.0.0.1",
       "port": 80
     }
   ],
