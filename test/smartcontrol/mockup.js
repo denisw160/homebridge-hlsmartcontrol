@@ -1,7 +1,5 @@
 const http = require('http');
-const url = require('url');
-
-let value = false;
+const qs = require('querystring');
 
 module.exports = SmartControlMockup;
 
@@ -11,6 +9,8 @@ module.exports = SmartControlMockup;
  */
 function SmartControlMockup() {
   this.port = 8888;
+  this.manual = false;
+  this.color = 0;
 }
 
 /**
@@ -27,56 +27,99 @@ SmartControlMockup.prototype.start = function () {
  * @param response Response
  */
 SmartControlMockup.prototype.handleRequest = function (request, response) {
-  // TODO Implement functions for SmartControl
-
-  if (request.method !== 'GET') {
+  if (request.method !== 'POST') {
     response.writeHead(405, {'Content-Type': 'text/html'});
     response.write('Method Not Allowed');
     response.end();
 
-    console.log('Someone tried to access the server without an GET request');
+    console.log('Someone tried to access the server without a POST request');
     return;
   }
 
-  const parts = url.parse(request.url, true);
+  // Handle requests
+  const that = this;
+  let body = '';
 
-  const pathname = parts.pathname.charAt(0) === '/' ? parts.pathname.substring(1) : parts.pathname;
-  const path = pathname.split('/');
+  request.on('data', function (data) {
+    body += data;
+  });
 
-  if (path.length === 0) {
-    response.writeHead(400, {'Content-Type': 'text/html'});
-    response.write('Bad Request');
+  function writeStateResponse() {
+    response.writeHead(200, {'Content-Type': 'application/json'});
+    let result = {
+      'A': {
+        'action': '10',
+      },
+      'S': {
+        'dtime': '14:10',
+        'stime': 850,
+        'tswi': '',
+        'cswi': that.manual,
+        'ttime': '01:00',
+        'ctime': '01:00',
+      },
+      'C': {
+        'no': 4,
+        'ch': [
+          that.color,
+          that.color,
+          that.color,
+          that.color,
+        ],
+      },
+    };
+    response.write(JSON.stringify(result));
     response.end();
-
-    console.log('Bad Request: ' + parts.pathname);
-    return;
   }
 
-  switch (path[0]) {
-    case 'get':
-      response.writeHead(200, {'Content-Type': 'text/html'});
-      response.write(value ? '1' : '0');
-      response.end();
-
-      value = !value;
-      break;
-    case 'on':
-      value = true;
-      response.writeHead(200, {'Content-Type': 'text/html'});
-      response.end();
-      break;
-    case 'off':
-      value = false;
-      response.writeHead(200, {'Content-Type': 'text/html'});
-      response.end();
-      break;
-    default:
-      response.writeHead(404, {'Content-Type': 'text/html'});
-      response.write('Not Found');
-      response.end();
-
-      console.log('Route not found: ' + path[0]);
+  function writeColorResponse() {
+    response.writeHead(200, {'Content-Type': 'application/json'});
+    let result = {
+      'A': {
+        'action': '01',
+      },
+      'C': {
+        'no': 4,
+        'ch': [
+          that.color,
+          that.color,
+          that.color,
+          that.color,
+        ],
+      },
+    };
+    response.write(JSON.stringify(result));
+    response.end();
   }
+
+  request.on('end', function () {
+    // Parse the request body
+    let data = qs.parse(body);
+
+    // Handle actions and returns
+    if (request.url === '/stat' && data.action === '10') {
+      console.log('Query for light state - manual: ' + that.manual + ' / color: ' + that.color);
+      writeStateResponse();
+
+    } else if (request.url === '/stat' && data.action === '14' && data.cswi !== undefined && data.ctime !== undefined) {
+      that.manual = data.cswi;
+      console.log('Updating light state - manual: ' + that.manual + ' / color: ' + that.color);
+      writeStateResponse();
+
+    } else if (request.url === '/color' && data.action === '1' && data.ch1 !== undefined && data.ch2 !== undefined && data.ch3 !== undefined && data.ch4 !== undefined) {
+      that.color = data.ch1;
+      console.log('Updating light color - manual: ' + that.manual + ' / color: ' + that.color);
+      writeColorResponse();
+
+    } else {
+      // Invalid request
+      response.writeHead(405, {'Content-Type': 'text/html'});
+      response.write('Invalid request');
+      response.end();
+
+      console.log('Someone tried to access the server with an invalid POST request');
+    }
+  });
 };
 
 // Start the Mockup
