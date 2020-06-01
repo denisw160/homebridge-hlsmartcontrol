@@ -224,7 +224,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
         this.logResponse('turnOffLight', data);
 
         // Update state and inform Homebridge
-        this.switchOn = true;
+        this.switchOn = false;
         this.log.info('Switch light state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
         callback();
       })
