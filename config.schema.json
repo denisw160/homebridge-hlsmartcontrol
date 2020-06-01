@@ -10,6 +10,29 @@
         "type": "string",
         "required": true,
         "default": "HeliaLux SmartControl"
+      },
+      "debug": {
+        "title": "Debug",
+        "type": "boolean",
+        "required": false,
+        "default": false
+      },
+      "timeout": {
+        "title": "Timeout",
+        "type": "number",
+        "required": false,
+        "default": 1000
+      },
+      "host": {
+        "title": "host",
+        "type": "string",
+        "required": true
+      },
+      "port": {
+        "title": "Port",
+        "type": "number",
+        "required": false,
+        "default": 80
       }
     }
   }

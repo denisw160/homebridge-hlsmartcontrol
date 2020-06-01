@@ -8,7 +8,11 @@
   "accessories": [
     {
       "accessory": "HLSmartControl",
-      "name": "HeliaLux SmartControl"
+      "name": "HeliaLux SmartControl",
+      "debug": true,
+      "timeout": 500,
+      "host": "192.168.0.x",
+      "port": 80
     }
   ],
   "platforms": []

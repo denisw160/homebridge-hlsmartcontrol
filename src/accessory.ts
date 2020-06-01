@@ -11,7 +11,10 @@ import {
   Service,
 } from 'homebridge';
 
-/*
+const axios = require('axios');
+
+/**
+ *
  * Homebridge Plugin for HeliaLux SmartControl
  *
  * A homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/).
@@ -23,7 +26,7 @@ import {
  */
 let hap: HAP;
 
-/*
+/**
  * Initializer function called when the plugin is loaded.
  */
 export = (api: API) => {
@@ -34,8 +37,8 @@ export = (api: API) => {
 class HLSmartControlSwitch implements AccessoryPlugin {
 
   private readonly api: API;
-
   private readonly log: Logging;
+
   private readonly name: string;
   private readonly debug: boolean;
   private readonly timeout: number;
@@ -59,13 +62,11 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     this.switchService = new hap.Service.Switch(this.name);
     this.switchService.getCharacteristic(hap.Characteristic.On)
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-        log.info('Current state of the switch was returned: ' + (this.switchOn ? 'ON' : 'OFF'));
-        callback(undefined, this.switchOn);
+        this.resolveLightState(callback);
       })
       .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-        this.switchOn = value as boolean;
-        log.info('Switch state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
-        callback();
+        let v = value as boolean;
+        this.setLightState(v, callback);
       });
 
     this.informationService = new hap.Service.AccessoryInformation()
@@ -94,12 +95,59 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     ];
   }
 
-  // getLightState(): void {
-  //
-  // }
+  resolveLightState(callback: CharacteristicGetCallback): void {
+    // Query status of the light
+    const url = 'http://' + this.host + ':' + this.port + '/stat';
+    axios.default.post(url, 'action=10', {
+      timeout: this.timeout,
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded'
+      }
+    })
+      .then((response) => {
+        // handle success
+        const data = response.data;
+        if (this.debug) {
+          this.log.info("************ start request *****************************");
+          if (data instanceof Object) {
+            this.log.info("data: " + JSON.stringify(data));
+          } else {
+            this.log.info("data: " + data);
+          }
+          this.log.info("************ end request *******************************");
+        }
 
-  // setLightState(value: boolean): void {
-  //
-  // }
+        // Calculate light state
+        let light: number = 0;
+        try {
+          if (data instanceof Object) {
+            data.C.ch.forEach((i) => {
+              light += i;
+            });
+          }
+        } catch (e) {
+          this.log.error("Unable to calculate light state: " + e)
+        }
+
+        // Update light state
+        this.switchOn = light > 0;
+
+        // Inform Homebridge
+        this.log.info('Current state of the switch was returned: ' + (this.switchOn ? 'ON' : 'OFF'));
+        callback(undefined, this.switchOn);
+      })
+      .catch((error) => {
+        // handle error
+        this.log.error("Error during query for light state: " + error);
+      });
+  }
+
+  setLightState(value: boolean, callback: CharacteristicSetCallback): void {
+    // TODO Implement set light
+    this.switchOn = value;
+
+    this.log.info('Switch state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
+    callback();
+  }
 
 }
