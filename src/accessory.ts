@@ -33,7 +33,10 @@ export = (api: API): void => {
   api.registerAccessory('HLSmartControl', HLSmartControlSwitch);
 };
 
+// noinspection HttpUrlsUsage
 class HLSmartControlSwitch implements AccessoryPlugin {
+
+  private readonly minResolveTimeMills = 5000;
 
   private readonly turnLightOnChannels = '&ch1=100&ch2=100&ch3=100&ch4=100';
   private readonly turnLightOffChannels = '&ch1=0&ch2=0&ch3=0&ch4=0';
@@ -110,17 +113,22 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private resolveLightState(callback: CharacteristicGetCallback): void {
     // Avoid to many resolve queries
-    if (Date.now() - this.lastResolveTimeMills < 5000) {
-      this.log.info('Last state of the light is: ' + (this.switchOn ? 'ON' : 'OFF'));
+    if (Date.now() - this.lastResolveTimeMills < this.minResolveTimeMills) {
+      this.log.info('Last state of the light was: ' + (this.switchOn ? 'ON' : 'OFF'));
       callback(undefined, this.switchOn);
       return;
     }
 
     // Query status of the light
-    const url = 'http://' + this.host + ':' + this.port + '/stat';
-    const requestData = 'action=10';
-    this.logRequest('resolveLightState', requestData, url);
-    axios.default.post(url, requestData, {
+    // Alternative implementation for query via /color
+    // const url = 'http://' + this.host + ':' + this.port + '/color';
+    // const requestData = 'action=10';
+    // this.logRequest('resolveLightState', null, url);
+    // axios.default.post(url, requestData, {
+    // Use status variables from UI
+    const url = 'http://' + this.host + ':' + this.port + '/statusvars.js';
+    this.logRequest('resolveLightState', null, url);
+    axios.default.get(url, {
       timeout: this.timeout,
       headers: HLSmartControlSwitch.getRequestHeaders(),
     })
@@ -134,8 +142,42 @@ class HLSmartControlSwitch implements AccessoryPlugin {
         let light = 0;
         try {
           if (responseData instanceof Object) {
+            /* Response is a JSON object (/color)
+             *     {
+             *         "A": {
+             *             "action": "10"
+             *         },
+             *         "C": {
+             *             "no": 4,
+             *             "ch": [
+             *                 0,
+             *                 0,
+             *                 0,
+             *                 0
+             *             ]
+             *         }
+             *     }
+             */
             responseData.C.ch.forEach((i) => {
               light += i;
+            });
+          } else if (HLSmartControlSwitch.isString(responseData)
+            && responseData.includes(';') && responseData.includes('=')) {
+            /* Response is a string with variables
+             *   lang=0;lamp='4Ch';profNum=4;profile='Dunkler';tsimtime=817;tsimact=0;csimact=1;
+             *   brightness=[100,100,100,100];times=[0,900,930,1275,1290,1320,1439];CH1=[0,0,100,100,30,0,0];
+             *   CH2=[0,0,90,90,15,0,0];CH3=[0,0,100,100,15,0,0];CH4=[0,0,100,100,40,0,0];
+             */
+            const keyValues = responseData.split(';');
+            let brightness = '[0,0,0,0]';
+            keyValues.forEach((element) => {
+              if (element.startsWith('brightness=')) {
+                brightness = element.split('=')[1];
+              }
+            });
+            brightness = brightness.replace('[', '').replace(']', '');
+            brightness.split(',').forEach((element) => {
+              light += Number(element);
             });
           }
         } catch (e) {
@@ -147,7 +189,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
         // Inform Homebridge
         this.lastResolveTimeMills = Date.now();
-        this.log.info('Current state of the light was returned: ' + (this.switchOn ? 'ON' : 'OFF'));
+        this.log.info('Returned state of the light is: ' + (this.switchOn ? 'ON' : 'OFF'));
         callback(undefined, this.switchOn);
       })
       .catch((error) => {
@@ -256,7 +298,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private logRequest(name: string, data, url: string) {
     if (this.debug) {
-      this.log.info(HLSmartControlSwitch.formatMessage(name + ' url ' + url));
+      this.log.info(HLSmartControlSwitch.formatMessage(name + ' request url: ' + url));
     }
     this.logData(name, data, 'request');
   }
@@ -269,7 +311,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private logResponse(name: string, data, status: number) {
     if (this.debug) {
-      this.log.info(HLSmartControlSwitch.formatMessage(name + ' status ' + status));
+      this.log.info(HLSmartControlSwitch.formatMessage(name + ' response status: ' + status));
     }
     this.logData(name, data, 'response');
   }
@@ -281,8 +323,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    * @param type type
    */
   private logData(name: string, data, type: string) {
-    if (this.debug) {
+    if (this.debug && data !== null) {
       this.log.info(HLSmartControlSwitch.formatMessage(name + ' start ' + type));
+      this.log.info('type ' + typeof data);
       if (data instanceof Object) {
         this.log.info('data: ' + JSON.stringify(data));
       } else {
@@ -302,6 +345,14 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     }
     const m = '***** ' + message + ' ';
     return m.padEnd(80, '*');
+  }
+
+  /**
+   * Check if value is a string.
+   * @param value value
+   */
+  private static isString(value) {
+    return value !== null && typeof value === 'string';
   }
 
   /**
