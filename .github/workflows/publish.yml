@@ -3,7 +3,8 @@ name: Publish Node.js Package
 
 on:
   release:
-    types: [created]
+    types:
+      - published
 
 jobs:
   build:
