@@ -107,7 +107,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private resolveLightState(callback: CharacteristicGetCallback): void {
     // Query status of the light
     const url = 'http://' + this.host + ':' + this.port + '/stat';
-    axios.default.post(url, 'action=10', {
+    const requestData = 'action=10';
+    this.logRequest('resolveLightState', requestData, url);
+    axios.default.post(url, requestData, {
       timeout: this.timeout,
       headers: {
         'Content-type': 'application/x-www-form-urlencoded',
@@ -115,14 +117,15 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     })
       .then((response) => {
         // handle success
-        const data = response.data;
-        this.logResponse('resolveLightState', data);
+        const responseData = response.data;
+        const responseStatus = response.status;
+        this.logResponse('resolveLightState', responseData, responseStatus);
 
         // Calculate light state
         let light = 0;
         try {
-          if (data instanceof Object) {
-            data.C.ch.forEach((i) => {
+          if (responseData instanceof Object) {
+            responseData.C.ch.forEach((i) => {
               light += i;
             });
           }
@@ -151,7 +154,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private switchLightState(value: boolean, callback: CharacteristicSetCallback): void {
     const url = 'http://' + this.host + ':' + this.port + '/stat';
-    axios.default.post(url, 'action=14&cswi=true&ctime=01:00', {
+    const requestData = 'action=14&cswi=true&ctime=01:00';
+    this.logRequest('turnOnManualControl', requestData, url);
+    axios.default.post(url, requestData, {
       timeout: this.timeout,
       headers: {
         'Content-type': 'application/x-www-form-urlencoded',
@@ -159,8 +164,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     })
       .then((response) => {
         // handle success
-        const data = response.data;
-        this.logResponse('turnOnManualControl', data);
+        const responseData = response.data;
+        const responseStatus = response.status;
+        this.logResponse('turnOnManualControl', responseData, responseStatus);
 
         if (this.switchOn) {
           this.log.info('Turning light off');
@@ -182,7 +188,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private turnOnLight(callback: CharacteristicSetCallback): void {
     const url = 'http://' + this.host + ':' + this.port + '/color';
-    axios.default.post(url, 'action=1&ch1=100&ch2=100&ch3=100&ch4=100', {
+    const requestData = 'action=1&ch1=100&ch2=100&ch3=100&ch4=100';
+    this.logRequest('turnOnLight', requestData, url);
+    axios.default.post(url, requestData, {
       timeout: this.timeout,
       headers: {
         'Content-type': 'application/x-www-form-urlencoded',
@@ -190,8 +198,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     })
       .then((response) => {
         // handle success
-        const data = response.data;
-        this.logResponse('turnOnLight', data);
+        const responseData = response.data;
+        const responseStatus = response.status;
+        this.logResponse('turnOnLight', responseData, responseStatus);
 
         // Update state and inform Homebridge
         this.switchOn = true;
@@ -210,7 +219,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private turnOffLight(callback: CharacteristicSetCallback): void {
     const url = 'http://' + this.host + ':' + this.port + '/color';
-    axios.default.post(url, 'action=1&ch1=0&ch2=0&ch3=0&ch4=0', {
+    const requestData = 'action=1&ch1=0&ch2=0&ch3=0&ch4=0';
+    this.logRequest('turnOffLight', requestData, url);
+    axios.default.post(url, requestData, {
       timeout: this.timeout,
       headers: {
         'Content-type': 'application/x-www-form-urlencoded',
@@ -218,8 +229,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     })
       .then((response) => {
         // handle success
-        const data = response.data;
-        this.logResponse('turnOffLight', data);
+        const responseData = response.data;
+        const responseStatus = response.status;
+        this.logResponse('turnOffLight', responseData, responseStatus);
 
         // Update state and inform Homebridge
         this.switchOn = false;
@@ -233,20 +245,59 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   /**
-   * Log received response from the server.
+   * Log send request to the server.
    * @param name name for the request
-   * @param data data in response
+   * @param data data in request
+   * @param url url for the request
    */
-  private logResponse(name: string, data) {
+  private logRequest(name: string, data, url: string) {
     if (this.debug) {
-      this.log.info('************ ' + name + ' start response *****************************');
+      this.log.info(HLSmartControlSwitch.formatMessage(name + ' url ' + url));
+    }
+    this.logData(name, data, 'request');
+  }
+
+  /**
+   * Log received response from the server.
+   * @param name name for the response
+   * @param data data in response
+   * @param status status code of the response
+   */
+  private logResponse(name: string, data, status: number) {
+    if (this.debug) {
+      this.log.info(HLSmartControlSwitch.formatMessage(name + ' status ' + status));
+    }
+    this.logData(name, data, 'response');
+  }
+
+  /**
+   * Log the data.
+   * @param name name
+   * @param data data
+   * @param type type
+   */
+  private logData(name: string, data, type: string) {
+    if (this.debug) {
+      this.log.info(HLSmartControlSwitch.formatMessage(name + ' start ' + type));
       if (data instanceof Object) {
         this.log.info('data: ' + JSON.stringify(data));
       } else {
         this.log.info('data: ' + data);
       }
-      this.log.info('************ ' + name + ' end response *******************************');
+      this.log.info(HLSmartControlSwitch.formatMessage(name + ' end ' + type));
     }
+  }
+
+  /**
+   * Formats a log message.
+   * @param message message
+   */
+  private static formatMessage(message: string) {
+    if (message == null) {
+      return "";
+    }
+    let m = '***** ' + message + ' ';
+    return m.padEnd(80, '*');
   }
 
 }
