@@ -28,7 +28,7 @@ let hap: HAP;
 /**
  * Initializer function called when the plugin is loaded.
  */
-export = (api: API) => {
+export = (api: API): void => {
   hap = api.hap;
   api.registerAccessory('HLSmartControl', HLSmartControlSwitch);
 };
@@ -303,10 +303,10 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    * @param message message
    */
   private static formatMessage(message: string) {
-    if (message == null) {
-      return "";
+    if (message === null) {
+      return '';
     }
-    let m = '***** ' + message + ' ';
+    const m = '***** ' + message + ' ';
     return m.padEnd(80, '*');
   }
 
