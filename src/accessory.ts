@@ -164,11 +164,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
         if (this.switchOn) {
           this.log.info('Turning light off');
-          // this.turnOnManualControl(this.turnOffLight.bind(this), callback);
           this.turnOffLight(callback);
         } else {
           this.log.info('Turning light on');
-          // this.turnOnManualControl(this.turnOnLight.bind(this), callback);
           this.turnOnLight(callback);
         }
       })
