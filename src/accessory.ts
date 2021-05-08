@@ -16,8 +16,8 @@ import axios = require('axios');
  *
  * Homebridge Plugin for HeliaLux SmartControl
  *
- * A homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/).
- * This plugin add the HeliaLux as a switch to the homebridge. The switch show the status of the lamp.
+ * A Homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/).
+ * This plugin add the HeliaLux as a switch to the Homebridge. The switch show the status of the lamp.
  * Is the lamp on, if the light / rgb values are greater than 0. Otherwise the switch is off.
  * If the lamp is off, you can turn the lights. The values for light and rgb are set to 100%. This state
  * is enabled for 1h (service mode), than the lamp return to the programmed profile.
@@ -48,6 +48,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private readonly port: number;
 
   private switchOn = false;
+  private lastResolveTimeMills = 0;
 
   private readonly switchService: Service;
   private readonly informationService: Service;
@@ -74,12 +75,12 @@ class HLSmartControlSwitch implements AccessoryPlugin {
       })
       .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
         const v = value as boolean;
-        this.switchLightState(v, callback);
+        this.switchToManual(v, callback);
       });
 
     this.informationService = new hap.Service.AccessoryInformation()
       .setCharacteristic(hap.Characteristic.Manufacturer, 'Juwel')
-      .setCharacteristic(hap.Characteristic.Model, 'HeliaLux SmartControl v2');
+      .setCharacteristic(hap.Characteristic.Model, 'HeliaLux SmartControl v2.1.0');
 
     log.info('HeliaLux SmartControl finished initializing!');
   }
@@ -108,22 +109,20 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    * @param callback if success, call this callback and inform Homebridge
    */
   private resolveLightState(callback: CharacteristicGetCallback): void {
-    // Query status of the light
-    const url = 'http://' + this.host + ':' + this.port + '/stat';
-    let requestData = 'action=10';
-    // Add always chanel settings to prevent overrides
-    if (this.switchOn) {
-      requestData = requestData + this.turnLightOnChannels;
-    } else {
-      requestData = requestData + this.turnLightOffChannels;
+    // Avoid to many resolve queries
+    if (Date.now() - this.lastResolveTimeMills < 5000) {
+      this.log.info('Last state of the light is: ' + (this.switchOn ? 'ON' : 'OFF'));
+      callback(undefined, this.switchOn);
+      return;
     }
 
+    // Query status of the light
+    const url = 'http://' + this.host + ':' + this.port + '/stat';
+    const requestData = 'action=10';
     this.logRequest('resolveLightState', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      },
+      headers: HLSmartControlSwitch.getRequestHeaders(),
     })
       .then((response) => {
         // handle success
@@ -147,6 +146,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
         this.switchOn = light > 0;
 
         // Inform Homebridge
+        this.lastResolveTimeMills = Date.now();
         this.log.info('Current state of the light was returned: ' + (this.switchOn ? 'ON' : 'OFF'));
         callback(undefined, this.switchOn);
       })
@@ -157,26 +157,24 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   /**
-   * Switch the light state. The SmartControl is turn in manual mode for 1h.
+   * Switch the light state to manual mode. The SmartControl is turn in manual mode for 1h.
    * The the color of the HeliaLux SmartControl is set 100% (on) or to 0% (off).
    * @param value State for the light.
    * @param callback if success, call this callback and inform Homebridge
    */
-  private switchLightState(value: boolean, callback: CharacteristicSetCallback): void {
+  private switchToManual(value: boolean, callback: CharacteristicSetCallback): void {
     const url = 'http://' + this.host + ':' + this.port + '/stat';
     const requestData = 'action=14&cswi=true&ctime=01:00';
-    this.logRequest('turnOnManualControl', requestData, url);
+    this.logRequest('switchToManual', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      },
+      headers: HLSmartControlSwitch.getRequestHeaders(),
     })
       .then((response) => {
         // handle success
         const responseData = response.data;
         const responseStatus = response.status;
-        this.logResponse('turnOnManualControl', responseData, responseStatus);
+        this.logResponse('switchToManual', responseData, responseStatus);
 
         if (this.switchOn) {
           this.log.info('Turning light off');
@@ -188,7 +186,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
       })
       .catch((error) => {
         // handle error
-        this.log.error('Error during turn on manual mode: ' + error);
+        this.log.error('Error during switch to manual mode: ' + error);
       });
   }
 
@@ -202,9 +200,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     this.logRequest('turnOnLight', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      },
+      headers: HLSmartControlSwitch.getRequestHeaders(),
     })
       .then((response) => {
         // handle success
@@ -233,9 +229,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     this.logRequest('turnOffLight', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      },
+      headers: HLSmartControlSwitch.getRequestHeaders(),
     })
       .then((response) => {
         // handle success
@@ -308,6 +302,17 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     }
     const m = '***** ' + message + ' ';
     return m.padEnd(80, '*');
+  }
+
+  /**
+   * Build the request header.
+   */
+  private static getRequestHeaders() {
+    return {
+      'User-Agent': 'Homebridge',
+      'Accept': '*/*',
+      'Content-type': 'application/x-www-form-urlencoded',
+    };
   }
 
 }
