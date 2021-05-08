@@ -239,13 +239,13 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private logResponse(name: string, data) {
     if (this.debug) {
-      this.log.info('************ ' + name + ' start request *****************************');
+      this.log.info('************ ' + name + ' start response *****************************');
       if (data instanceof Object) {
         this.log.info('data: ' + JSON.stringify(data));
       } else {
         this.log.info('data: ' + data);
       }
-      this.log.info('************ ' + name + ' end request *******************************');
+      this.log.info('************ ' + name + ' end response *******************************');
     }
   }
 
