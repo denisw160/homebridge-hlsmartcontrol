@@ -35,6 +35,9 @@ export = (api: API) => {
 
 class HLSmartControlSwitch implements AccessoryPlugin {
 
+  private readonly turnLightOnChannels = '&ch1=100&ch2=100&ch3=100&ch4=100';
+  private readonly turnLightOffChannels = '&ch1=0&ch2=0&ch3=0&ch4=0';
+
   private readonly api: API;
   private readonly log: Logging;
 
@@ -107,7 +110,14 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private resolveLightState(callback: CharacteristicGetCallback): void {
     // Query status of the light
     const url = 'http://' + this.host + ':' + this.port + '/stat';
-    const requestData = 'action=10';
+    let requestData = 'action=10';
+    // Add always chanel settings to prevent overrides
+    if (this.switchOn) {
+      requestData = requestData + this.turnLightOnChannels;
+    } else {
+      requestData = requestData + this.turnLightOffChannels;
+    }
+
     this.logRequest('resolveLightState', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
@@ -188,7 +198,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private turnOnLight(callback: CharacteristicSetCallback): void {
     const url = 'http://' + this.host + ':' + this.port + '/color';
-    const requestData = 'action=1&ch1=100&ch2=100&ch3=100&ch4=100';
+    const requestData = 'action=1' + this.turnLightOnChannels;
     this.logRequest('turnOnLight', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
@@ -219,7 +229,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    */
   private turnOffLight(callback: CharacteristicSetCallback): void {
     const url = 'http://' + this.host + ':' + this.port + '/color';
-    const requestData = 'action=1&ch1=0&ch2=0&ch3=0&ch4=0';
+    const requestData = 'action=1' + this.turnLightOffChannels;
     this.logRequest('turnOffLight', requestData, url);
     axios.default.post(url, requestData, {
       timeout: this.timeout,
