@@ -49,8 +49,12 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private readonly host: string;
   private readonly port: number;
 
+  private readonly switchService: Service;
+  private readonly informationService: Service;
+
   // Cached state
   private state = {
+    lock: false,
     lastResolveTimeMills: 0,
     on: false,
     white: 0,
@@ -58,9 +62,6 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     green: 0,
     red: 0,
   };
-
-  private readonly switchService: Service;
-  private readonly informationService: Service;
 
   /**
    * Create the plugin instance and initialize settings.
@@ -154,15 +155,17 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private getOn(callback: CharacteristicGetCallback): void {
     this.resolveLightState().then(() => {
+      this.log.debug('getOn => ' + this.state.on);
       callback(HAPStatus.SUCCESS, this.state.on);
     }).catch(() => {
-      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE, false);
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     });
   }
 
-  private setOn(value: boolean, callback: CharacteristicGetCallback): void {
+  private setOn(value: boolean, callback: CharacteristicSetCallback): void {
     if (value) {
       const on = [100, 100, 100, 100];
+      this.log.debug('setOn => ' + on);
       this.switchToManual(on, callback);
     } else {
       const off = [0, 0, 0, 0];
@@ -171,33 +174,63 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   private getBrightness(callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback(HAPStatus.SUCCESS, false);
+    this.resolveLightState().then(() => {
+      let hsl = this.getLightHsl();
+      this.log.debug('getBrightness => ' + hsl[2]);
+      callback(HAPStatus.SUCCESS, hsl[2]);
+    }).catch(() => {
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    });
   }
 
-  private setBrightness(value: number, callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback();
+  private setBrightness(value: number, callback: CharacteristicSetCallback): void {
+    this.resolveLightState().then(() => {
+      const brightness = [value, this.state.blue, this.state.green, this.state.red];
+      this.log.info('setBrightness => ', brightness);
+      this.switchToManual(brightness, callback);
+    }).catch(() => {
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    });
   }
 
   private getHue(callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback(HAPStatus.SUCCESS, false);
+    this.resolveLightState().then(() => {
+      let hsl = this.getLightHsl();
+      this.log.debug('getHue => ' + hsl[0]);
+      callback(HAPStatus.SUCCESS, hsl[0]);
+    }).catch(() => {
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    });
   }
 
-  private setHue(value: number, callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback();
+  private setHue(value: number, callback: CharacteristicSetCallback): void {
+    this.resolveLightState().then(() => {
+      const hue = [0, 0, 0, 0]; // TODO Calculate
+      this.log.info('setHue => ', hue);
+      this.switchToManual(hue, callback);
+    }).catch(() => {
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    });
   }
 
   private getSaturation(callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback(HAPStatus.SUCCESS, false);
+    this.resolveLightState().then(() => {
+      let hsl = this.getLightHsl();
+      this.log.debug('getSaturation => ' + hsl[1]);
+      callback(HAPStatus.SUCCESS, hsl[1]);
+    }).catch(() => {
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    });
   }
 
-  private setSaturation(value: number, callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback();
+  private setSaturation(value: number, callback: CharacteristicSetCallback): void {
+    this.resolveLightState().then(() => {
+      const saturation = [0, 0, 0, 0]; // TODO Calculate
+      this.log.info('setSaturation => ' + saturation);
+      this.switchToManual(saturation, callback);
+    }).catch(() => {
+      callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    });
   }
 
   /**
@@ -207,12 +240,22 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private resolveLightState(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
 
+      if (this.state.lock) {
+        this.log.debug('State is locked');
+        reject('State is locked');
+        return;
+      }
+
       // Avoid to many resolve queries
       if (Date.now() - this.state.lastResolveTimeMills < this.minResolveTimeMills) {
         this.log.info('Last/cached state of the light was: ' + (this.state.on ? 'ON' : 'OFF'));
         resolve();
         return;
       }
+
+      // Lock oject
+      this.log.info('Locking...');
+      this.state.lock = true;
 
       // Query status of the light
       // Alternative implementation for query via /color
@@ -299,9 +342,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
             reject(e);
           }
 
-          // Update light state
-          const light = this.state.white + this.state.blue + this.state.green + this.state.red;
-          this.state.on = light > 0;
+          // Update light state          
+          this.state.on = this.getLight() > 0;
 
           // Inform Homebridge
           this.state.lastResolveTimeMills = Date.now();
@@ -316,6 +358,11 @@ class HLSmartControlSwitch implements AccessoryPlugin {
           this.state.lastResolveTimeMills = 0;
           this.state.on = false;
           reject(error);
+        })
+        .finally(() => {
+          // Unlocking oject
+          this.log.debug('Unlocking!');
+          this.state.lock = false;
         });
     });
   }
@@ -371,7 +418,13 @@ class HLSmartControlSwitch implements AccessoryPlugin {
         this.logResponse('setLight', responseData, responseStatus);
 
         // Update state and inform Homebridge
-        this.state.on = (this.state.white + this.state.blue + this.state.green + this.state.red) > 0;
+        if (values.length === 4) {
+          this.state.white = values[0];
+          this.state.blue = values[1];
+          this.state.green = values[2];
+          this.state.red = values[3];
+          this.state.on = this.getLight() > 0;
+        }
         this.state.lastResolveTimeMills = 0;
         this.log.info('Switch light state was set to: ' + (this.state.on ? 'ON' : 'OFF'));
         callback(HAPStatus.SUCCESS);
@@ -426,6 +479,54 @@ class HLSmartControlSwitch implements AccessoryPlugin {
       }
       this.log.info(HLSmartControlSwitch.formatMessage(name + ' end ' + type));
     }
+  }
+
+  /**
+   * Get the light as sum of colors.
+   * @returns Sum of colors
+   */
+  private getLight(): number {
+    return this.state.white + this.state.blue + this.state.green + this.state.red;
+  }
+
+  /**
+   * Converts the RGB color value (from light state) to HSL. Conversion formula
+   * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+   * 
+   * Assumes colors r, g, and b are in [0..100] and
+   * returns h in [0..360], and s and l in [0..100].
+   * 
+   * @returns The HSL representation
+   */
+  private getLightHsl(): Array<number> {
+    const r = this.state.red / 100;
+    const g = this.state.green / 100;
+    const b = this.state.blue / 100;
+
+    const max: number = Math.max(r, g, b);
+    const min: number = Math.min(r, g, b);
+    var h: number = 0;
+    var s: number = 0;
+    var l: number = (max + min) / 2;
+
+    if (max == min) {
+      h = s = 0; // achromatic
+    } else {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+
+    h *= 360; // return degrees [0..360]
+    s *= 100; // return percent [0..100]
+    l *= 100; // return percent [0..100]
+
+    return [Math.round(h), Math.round(s), Math.round(l)];
   }
 
   /**
