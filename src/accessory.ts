@@ -12,7 +12,7 @@ import {
   Service,
 } from 'homebridge';
 import axios = require('axios');
-var convert = require('color-convert');
+import convert = require('color-convert');
 
 /**
  *
