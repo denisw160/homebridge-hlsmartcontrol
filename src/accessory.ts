@@ -568,8 +568,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     let val;
 
     if (s === 0) {
-      val = l * 255;
-      return [Math.round(val), Math.round(val), Math.round(val)];
+      val = Math.round(l * 100);
+      return [val, val, val];
     }
 
     if (l < 0.5) {
