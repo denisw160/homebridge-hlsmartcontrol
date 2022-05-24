@@ -39,9 +39,6 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private readonly minResolveTimeMills = 5000;
 
-  private readonly turnLightOnChannels = '&ch1=100&ch2=100&ch3=100&ch4=100';
-  private readonly turnLightOffChannels = '&ch1=0&ch2=0&ch3=0&ch4=0';
-
   private readonly api: API;
   private readonly log: Logging;
 
@@ -141,7 +138,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    * Typical this only ever happens at the pairing process.
    */
   identify(): void {
-    this.log.info('Identify: {}', this.name);
+    this.log.info('Identify: ', this.name);
   }
 
   /**
@@ -164,8 +161,13 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   private setOn(value: boolean, callback: CharacteristicGetCallback): void {
-    // TODO implement
-    callback();
+    if (value) {
+      const on = [100, 100, 100, 100];
+      this.switchToManual(on, callback);
+    } else {
+      const off = [0, 0, 0, 0];
+      this.switchToManual(off, callback);
+    }
   }
 
   private getBrightness(callback: CharacteristicGetCallback): void {
@@ -304,7 +306,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
           // Inform Homebridge
           this.state.lastResolveTimeMills = Date.now();
           this.log.info('Returned state of the light is: ' + (this.state.on ? 'ON' : 'OFF'));
-          this.log.debug('Light state is: {}', this.state);
+          this.log.debug('Light state is ', this.state);
 
           resolve();
         })
@@ -318,97 +320,68 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     });
   }
 
-  // /**
-  //  * Switch the light state to manual mode. The SmartControl is turn in manual mode for 1h.
-  //  * The the color of the HeliaLux SmartControl is set 100% (on) or to 0% (off).
-  //  * @param value State for the light.
-  //  * @param callback if success, call this callback and inform Homebridge
-  //  */
-  // private switchToManual(value: boolean, callback: CharacteristicSetCallback): void {
-  //   const url = 'http://' + this.host + ':' + this.port + '/stat';
-  //   const requestData = 'action=14&cswi=true&ctime=01:00';
-  //   this.logRequest('switchToManual', requestData, url);
-  //   axios.default.post(url, requestData, {
-  //     timeout: this.timeout,
-  //     headers: HLSmartControlSwitch.getRequestHeaders(),
-  //   })
-  //     .then((response) => {
-  //       // handle success
-  //       const responseData = response.data;
-  //       const responseStatus = response.status;
-  //       this.logResponse('switchToManual', responseData, responseStatus);
+  /**
+   * Switch the light state to manual mode. The SmartControl is turn in manual mode for 1h.
+   * The the color of the HeliaLux SmartControl is set to the values.
+   * Special settings all values are 100% (on) or 0% (off).
+   * @param values Values for the light (white, blue, green, red)
+   * @param callback if success, call this callback and inform Homebridge
+   */
+  private switchToManual(values: Array<number>, callback: CharacteristicSetCallback): void {
+    const url = 'http://' + this.host + ':' + this.port + '/stat';
+    const requestData = 'action=14&cswi=true&ctime=01:00';
+    this.logRequest('switchToManual', requestData, url);
+    axios.default.post(url, requestData, {
+      timeout: this.timeout,
+      headers: HLSmartControlSwitch.getRequestHeaders(),
+    })
+      .then((response) => {
+        // handle success
+        const responseData = response.data;
+        const responseStatus = response.status;
+        this.logResponse('switchToManual', responseData, responseStatus);
 
-  //       if (this.switchOn) {
-  //         this.log.info('Turning light off');
-  //         this.turnOffLight(callback);
-  //       } else {
-  //         this.log.info('Turning light on');
-  //         this.turnOnLight(callback);
-  //       }
-  //     })
-  //     .catch((error) => {
-  //       // handle error
-  //       this.log.error('Error during switch to manual mode: ' + error);
-  //     });
-  // }
+        this.log.info('Turning light to ', values);
+        this.setLight(values, callback);
+      })
+      .catch((error) => {
+        // handle error
+        this.log.error('Error during switch to manual mode: ' + error);
+        callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      });
+  }
 
-  // /**
-  //  * Turn the color to 100%.
-  //  * @param callback if success, call this callback and inform Homebridge
-  //  */
-  // private turnOnLight(callback: CharacteristicSetCallback): void {
-  //   const url = 'http://' + this.host + ':' + this.port + '/color';
-  //   const requestData = 'action=1' + this.turnLightOnChannels;
-  //   this.logRequest('turnOnLight', requestData, url);
-  //   axios.default.post(url, requestData, {
-  //     timeout: this.timeout,
-  //     headers: HLSmartControlSwitch.getRequestHeaders(),
-  //   })
-  //     .then((response) => {
-  //       // handle success
-  //       const responseData = response.data;
-  //       const responseStatus = response.status;
-  //       this.logResponse('turnOnLight', responseData, responseStatus);
+  /**
+   * Turn the color to given values.
+   * @param values Values for the light (white, blue, green, red)
+   * @param callback if success, call this callback and inform Homebridge
+   */
+  private setLight(values: Array<number>, callback: CharacteristicSetCallback): void {
+    const url = 'http://' + this.host + ':' + this.port + '/color';
+    const requestData = 'action=1' + HLSmartControlSwitch.getLightChannels(values);
+    this.logRequest('setLight', requestData, url);
+    axios.default.post(url, requestData, {
+      timeout: this.timeout,
+      headers: HLSmartControlSwitch.getRequestHeaders(),
+    })
+      .then((response) => {
+        // handle success
+        const responseData = response.data;
+        const responseStatus = response.status;
+        this.logResponse('setLight', responseData, responseStatus);
 
-  //       // Update state and inform Homebridge
-  //       this.switchOn = true;
-  //       this.log.info('Switch light state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
-  //       callback();
-  //     })
-  //     .catch((error) => {
-  //       // handle error
-  //       this.log.error('Error during turn on lights: ' + error);
-  //     });
-  // }
-
-  // /**
-  //  * Turn the color to 0%.
-  //  * @param callback if success, call this callback and inform Homebridge
-  //  */
-  // private turnOffLight(callback: CharacteristicSetCallback): void {
-  //   const url = 'http://' + this.host + ':' + this.port + '/color';
-  //   const requestData = 'action=1' + this.turnLightOffChannels;
-  //   this.logRequest('turnOffLight', requestData, url);
-  //   axios.default.post(url, requestData, {
-  //     timeout: this.timeout,
-  //     headers: HLSmartControlSwitch.getRequestHeaders(),
-  //   })
-  //     .then((response) => {
-  //       // handle success
-  //       const responseData = response.data;
-  //       const responseStatus = response.status;
-  //       this.logResponse('turnOffLight', responseData, responseStatus);
-
-  //       // Update state and inform Homebridge
-  //       this.switchOn = false;
-  //       this.log.info('Switch light state was set to: ' + (this.switchOn ? 'ON' : 'OFF'));
-  //       callback();
-  //     })
-  //     .catch((error) => {
-  //       // handle error
-  //       this.log.error('Error during turn off lights: ' + error);
-  //     });
-  // }
+        // Update state and inform Homebridge
+        this.state.on = (this.state.white + this.state.blue + this.state.green + this.state.red) > 0;
+        this.state.lastResolveTimeMills = 0;
+        this.log.info('Switch light state was set to: ' + (this.state.on ? 'ON' : 'OFF'));
+        callback(HAPStatus.SUCCESS);
+      })
+      .catch((error) => {
+        // handle error
+        this.log.error('Error during turn on lights: ' + error);
+        callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      });
+  }
 
   /**
    * Log send request to the server.
@@ -456,10 +429,27 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   /**
+   * Return the values to a channel string (for the request).
+   * Example: '&ch1=100&ch2=100&ch3=100&ch4=100'
+   * @param values Values for the light (white, blue, green, red) 
+   */
+  private static getLightChannels(values: Array<number>): string {
+    if (!values || values.length !== 4) {
+      return '&ch1=0&ch2=0&ch3=0&ch4=0';
+    } else {
+      let channels = '';
+      values.forEach((value, index) => {
+        channels += '&ch' + (index + 1) + "=" + value;
+      });
+      return channels;
+    }
+  }
+
+  /**
    * Formats a log message.
    * @param message message
    */
-  private static formatMessage(message: string) {
+  private static formatMessage(message: string): string {
     if (message === null) {
       return '';
     }
@@ -471,7 +461,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
    * Check if value is a string.
    * @param value value
    */
-  private static isString(value) {
+  private static isString(value): boolean {
     return value !== null && typeof value === 'string';
   }
 
