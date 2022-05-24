@@ -12,6 +12,7 @@ import {
   Service,
 } from 'homebridge';
 import axios = require('axios');
+import convert = require('color-convert');
 
 /**
  *
@@ -175,7 +176,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private getBrightness(callback: CharacteristicGetCallback): void {
     this.resolveLightState().then(() => {
-      let hsl = this.getLightHsl();
+      const hsl = this.getLightHsl();
       this.log.debug('getBrightness => ' + hsl[2]);
       callback(HAPStatus.SUCCESS, hsl[2]);
     }).catch(() => {
@@ -185,7 +186,15 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private setBrightness(value: number, callback: CharacteristicSetCallback): void {
     this.resolveLightState().then(() => {
-      const brightness = [value, this.state.blue, this.state.green, this.state.red];
+      const hsl = this.getLightHsl();
+      hsl[2] = value;
+      const rgb = this.convertToRgb(hsl);
+      this.state.white = 0; // use only colored LEDs
+      this.state.red = rgb[0];
+      this.state.green = rgb[1];
+      this.state.blue = rgb[2];
+
+      const brightness = [this.state.white, this.state.blue, this.state.green, this.state.red];
       this.log.info('setBrightness => ', brightness);
       this.switchToManual(brightness, callback);
     }).catch(() => {
@@ -195,7 +204,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private getHue(callback: CharacteristicGetCallback): void {
     this.resolveLightState().then(() => {
-      let hsl = this.getLightHsl();
+      const hsl = this.getLightHsl();
       this.log.debug('getHue => ' + hsl[0]);
       callback(HAPStatus.SUCCESS, hsl[0]);
     }).catch(() => {
@@ -205,7 +214,15 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private setHue(value: number, callback: CharacteristicSetCallback): void {
     this.resolveLightState().then(() => {
-      const hue = [0, 0, 0, 0]; // TODO Calculate
+      const hsl = this.getLightHsl();
+      hsl[0] = value;
+      const rgb = this.convertToRgb(hsl);
+      this.state.white = 0; // use only colored LEDs
+      this.state.red = rgb[0];
+      this.state.green = rgb[1];
+      this.state.blue = rgb[2];
+
+      const hue = [this.state.white, this.state.blue, this.state.green, this.state.red];
       this.log.info('setHue => ', hue);
       this.switchToManual(hue, callback);
     }).catch(() => {
@@ -215,7 +232,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private getSaturation(callback: CharacteristicGetCallback): void {
     this.resolveLightState().then(() => {
-      let hsl = this.getLightHsl();
+      const hsl = this.getLightHsl();
       this.log.debug('getSaturation => ' + hsl[1]);
       callback(HAPStatus.SUCCESS, hsl[1]);
     }).catch(() => {
@@ -225,7 +242,15 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private setSaturation(value: number, callback: CharacteristicSetCallback): void {
     this.resolveLightState().then(() => {
-      const saturation = [0, 0, 0, 0]; // TODO Calculate
+      const hsl = this.getLightHsl();
+      hsl[1] = value;
+      const rgb = this.convertToRgb(hsl);
+      this.state.white = 0; // use only colored LEDs
+      this.state.red = rgb[0];
+      this.state.green = rgb[1];
+      this.state.blue = rgb[2];
+
+      const saturation = [this.state.white, this.state.blue, this.state.green, this.state.red];
       this.log.info('setSaturation => ' + saturation);
       this.switchToManual(saturation, callback);
     }).catch(() => {
@@ -240,14 +265,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private resolveLightState(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
 
-      if (this.state.lock) {
-        this.log.debug('State is locked');
-        reject('State is locked');
-        return;
-      }
-
       // Avoid to many resolve queries
-      if (Date.now() - this.state.lastResolveTimeMills < this.minResolveTimeMills) {
+      if (Date.now() - this.state.lastResolveTimeMills < this.minResolveTimeMills || this.state.lock) {
         this.log.info('Last/cached state of the light was: ' + (this.state.on ? 'ON' : 'OFF'));
         resolve();
         return;
@@ -342,7 +361,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
             reject(e);
           }
 
-          // Update light state          
+          // Update light state
           this.state.on = this.getLight() > 0;
 
           // Inform Homebridge
@@ -490,49 +509,41 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   /**
-   * Converts the RGB color value (from light state) to HSL. Conversion formula
-   * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
-   * 
-   * Assumes colors r, g, and b are in [0..100] and
-   * returns h in [0..360], and s and l in [0..100].
-   * 
+   * Converts the RGB color value (from light state) to HSL.
+   * Assumes colors red, green and blue are in [0..100] and
+   * returns hue in [0..360] and saturation and level in [0..100].
    * @returns The HSL representation
    */
-  private getLightHsl(): Array<number> {
-    const r = this.state.red / 100;
-    const g = this.state.green / 100;
-    const b = this.state.blue / 100;
+  private getLightHsl(): [number, number, number] {
+    const r = Math.round(this.state.red * 255 / 100);
+    const g = Math.round(this.state.green * 255 / 100);
+    const b = Math.round(this.state.blue * 255 / 100);
+    return convert.rgb.hsl(r, g, b);
+  }
 
-    const max: number = Math.max(r, g, b);
-    const min: number = Math.min(r, g, b);
-    var h: number = 0;
-    var s: number = 0;
-    var l: number = (max + min) / 2;
-
-    if (max == min) {
-      h = s = 0; // achromatic
-    } else {
-      var d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-        case g: h = (b - r) / d + 2; break;
-        case b: h = (r - g) / d + 4; break;
-      }
-      h /= 6;
+  /**
+   * Converts the HSL color value to RGB.
+   * Assumes colors red, green and blue are in [0..100] and
+   * returns hue in [0..360] and saturation and level in [0..100].
+   * @param hsl The HSL representation
+   * @returns The RGB representation
+   */
+  private convertToRgb(hsl: [number, number, number]): [number, number, number] {
+    if (!hsl || hsl.length !== 3) {
+      return [0, 0, 0];
     }
 
-    h *= 360; // return degrees [0..360]
-    s *= 100; // return percent [0..100]
-    l *= 100; // return percent [0..100]
-
-    return [Math.round(h), Math.round(s), Math.round(l)];
+    const rgb = convert.hsl.rgb(hsl);
+    rgb[0] = Math.round(rgb[0] / 255 * 100);
+    rgb[1] = Math.round(rgb[1] / 255 * 100);
+    rgb[2] = Math.round(rgb[2] / 255 * 100);
+    return rgb;
   }
 
   /**
    * Return the values to a channel string (for the request).
    * Example: '&ch1=100&ch2=100&ch3=100&ch4=100'
-   * @param values Values for the light (white, blue, green, red) 
+   * @param values Values for the light (white, blue, green, red)
    */
   private static getLightChannels(values: Array<number>): string {
     if (!values || values.length !== 4) {
@@ -540,7 +551,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     } else {
       let channels = '';
       values.forEach((value, index) => {
-        channels += '&ch' + (index + 1) + "=" + value;
+        channels += '&ch' + (index + 1) + '=' + value;
       });
       return channels;
     }
