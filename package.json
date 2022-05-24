@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "HeliaLux SmartControl",
   "name": "homebridge-hlsmartcontrol",
-  "version": "1.2.0",
+  "version": "1.2.0-beta1",
   "description": "A homebridge plugin for Juwel HeliaLux SmartControl (https://www.juwel-aquarium.de/)",
   "author": "Denis Wirries <denisw160@wirries.me>",
   "license": "ISC",
