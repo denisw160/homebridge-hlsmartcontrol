@@ -272,7 +272,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
       }
 
       // Lock oject
-      this.log.info('Locking...');
+      this.log.debug('Locking...');
       this.state.lock = true;
 
       // Query status of the light
