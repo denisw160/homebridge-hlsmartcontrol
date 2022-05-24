@@ -10,6 +10,7 @@
       "accessory": "HLSmartControl",
       "name": "HeliaLux SmartControl",
       "debug": true,
+      "color": true,
       "timeout": 500,
       "host": "127.0.0.1",
       "port": 80

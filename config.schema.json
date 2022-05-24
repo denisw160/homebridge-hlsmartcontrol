@@ -17,6 +17,12 @@
         "required": false,
         "default": false
       },
+      "color": {
+        "title": "Enable color",
+        "type": "boolean",
+        "required": false,
+        "default": false
+      },
       "timeout": {
         "title": "Timeout",
         "type": "number",

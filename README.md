@@ -33,6 +33,7 @@ Add a new accessory to your Homebridge configuration. The plug has the following
           "accessory": "HLSmartControl",
           "name": "HeliaLux SmartControl",
           "debug": false,
+          "color": false,
           "timeout": 1000,
           "host": "xxx.xxx.xxx.xxx",
           "port": 80
@@ -43,6 +44,7 @@ Add a new accessory to your Homebridge configuration. The plug has the following
 
 - name (string, required): Name of the plugin show in your Homekit
 - debug (boolean, default: false): Enable additional logging information
+- color (boolean, default: false): Enable color selection for the lamp
 - timeout (int, default: 1000): Set the timeout (im ms) for the http request
 - host (string, required): IP-address or hostname of the SmartControl device
 - port (int, default: 80): Port on the SmartControl device
