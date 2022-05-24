@@ -61,6 +61,9 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     blue: 0,
     green: 0,
     red: 0,
+    h: 0,
+    s: 0,
+    l: 0,
   };
 
   /**
@@ -185,9 +188,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private setBrightness(value: number, callback: CharacteristicSetCallback): void {
     this.resolveLightState().then(() => {
-      const hsl = this.getLightHsl();
-      hsl[2] = value;
-      const rgb = this.convertToRgb(hsl);
+      this.state.l = value; // use cached values
+      const rgb = this.convertToRgb([this.state.h, this.state.s, this.state.l]);
       this.state.white = 0; // use only colored LEDs
       this.state.red = rgb[0];
       this.state.green = rgb[1];
@@ -213,9 +215,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private setHue(value: number, callback: CharacteristicSetCallback): void {
     this.resolveLightState().then(() => {
-      const hsl = this.getLightHsl();
-      hsl[0] = value;
-      const rgb = this.convertToRgb(hsl);
+      this.state.h = value; // use cached values
+      const rgb = this.convertToRgb([this.state.h, this.state.s, this.state.l]);
       this.state.white = 0; // use only colored LEDs
       this.state.red = rgb[0];
       this.state.green = rgb[1];
@@ -241,9 +242,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
   private setSaturation(value: number, callback: CharacteristicSetCallback): void {
     this.resolveLightState().then(() => {
-      const hsl = this.getLightHsl();
-      hsl[1] = value;
-      const rgb = this.convertToRgb(hsl);
+      this.state.s = value; // use cached values
+      const rgb = this.convertToRgb([this.state.h, this.state.s, this.state.l]);
       this.state.white = 0; // use only colored LEDs
       this.state.red = rgb[0];
       this.state.green = rgb[1];
