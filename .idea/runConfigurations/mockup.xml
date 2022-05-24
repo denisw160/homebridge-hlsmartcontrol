@@ -1,5 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="mockup" type="NodeJSConfigurationType" path-to-js-file="mockup.js" working-dir="$PROJECT_DIR$/test/smartcontrol">
-    <method v="2" />
-  </configuration>
-</component>
