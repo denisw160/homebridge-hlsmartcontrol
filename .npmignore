@@ -1,7 +1,11 @@
 # Ignore source code
 src
+test
 
 # ------------- Defaults ------------- #
+
+# gitHub actions
+.github
 
 # eslint
 .eslintrc
@@ -11,9 +15,6 @@ tsconfig.json
 
 # vscode
 .vscode
-
-# idea
-.idea
 
 # nodemon
 nodemon.json
@@ -101,7 +102,6 @@ web_modules/
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
