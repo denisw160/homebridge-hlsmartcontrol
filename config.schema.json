@@ -24,7 +24,7 @@
         "default": 1000
       },
       "host": {
-        "title": "host",
+        "title": "Host",
         "type": "string",
         "required": true
       },
