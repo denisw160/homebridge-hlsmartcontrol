@@ -59,7 +59,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     white: 0,
     blue: 0,
     green: 0,
-    red: 0
+    red: 0,
   };
 
   private readonly switchService: Service;
@@ -156,8 +156,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   }
 
   private getOn(callback: CharacteristicGetCallback): void {
-    let pState = this.resolveLightState();
-    pState.then(() => {
+    this.resolveLightState().then(() => {
       callback(HAPStatus.SUCCESS, this.state.on);
     }).catch(() => {
       callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE, false);
@@ -278,7 +277,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
                 }
               });
               brightness = brightness.replace('[', '').replace(']', '');
-              let aBrightness = brightness.split(',');
+              const aBrightness = brightness.split(',');
               if (aBrightness.length === 4) {
                 this.state.white = Number(aBrightness[0]);
                 this.state.blue = Number(aBrightness[1]);
@@ -299,7 +298,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
           }
 
           // Update light state
-          let light = this.state.white + this.state.blue + this.state.green + this.state.red;
+          const light = this.state.white + this.state.blue + this.state.green + this.state.red;
           this.state.on = light > 0;
 
           // Inform Homebridge
