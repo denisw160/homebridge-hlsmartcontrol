@@ -47,7 +47,7 @@ Add a new accessory to your Homebridge configuration. The plug has the following
 - host (string, required): IP-address or hostname of the SmartControl device
 - port (int, default: 80): Port on the SmartControl device
 
-## Link To your Homebridge (for developing)
+## Link to your Homebridge (for developing)
 
 Run this command that Homebridge can discover the plugin in your development environment:
 
@@ -60,7 +60,7 @@ You can now start developing Homebridge instance with this command:
 Make sure that your Homebridge configuration exists in your home (`~/.homebridge/config.json`). You found a sample
 under `test/homebridge/config.json`.
 
-## Watch For Changes and Build Automatically
+## Watch for changes and build automatically
 
 If you want to have your code compile automatically as you make changes, and restart Homebridge automatically
 between changes you can run:
