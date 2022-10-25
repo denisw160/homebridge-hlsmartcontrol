@@ -9,6 +9,7 @@
     {
       "accessory": "HLSmartControl",
       "name": "HeliaLux SmartControl",
+      "serial": "Test Serial",
       "debug": true,
       "color": true,
       "timeout": 500,

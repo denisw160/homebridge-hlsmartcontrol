@@ -11,6 +11,12 @@
         "required": true,
         "default": "HeliaLux SmartControl"
       },
+      "serial": {
+        "title": "Serial",
+        "type": "string",
+        "required": false,
+        "default": "Default Serial"
+      },
       "debug": {
         "title": "Debug",
         "type": "boolean",

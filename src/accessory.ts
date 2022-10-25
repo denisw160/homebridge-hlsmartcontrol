@@ -43,6 +43,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
   private readonly log: Logging;
 
   private readonly name: string;
+  private readonly serial: string;
   private readonly debug: boolean;
   private readonly color: boolean;
   private readonly timeout: number;
@@ -76,6 +77,7 @@ class HLSmartControlSwitch implements AccessoryPlugin {
     this.log = log;
     this.api = api;
     this.name = config.name;
+    this.serial = config.serial;
     this.debug = config.debug || false;
     this.color = config.color || false;
     this.timeout = config.timeout || 1000;
@@ -132,7 +134,8 @@ class HLSmartControlSwitch implements AccessoryPlugin {
 
     this.informationService = new hap.Service.AccessoryInformation()
       .setCharacteristic(hap.Characteristic.Manufacturer, 'Juwel')
-      .setCharacteristic(hap.Characteristic.Model, 'HeliaLux SmartControl v2.1.0');
+      .setCharacteristic(hap.Characteristic.Model, 'HeliaLux SmartControl v2.1.0')
+      .setCharacteristic(hap.Characteristic.SerialNumber, this.serial);
 
     log.info('HeliaLux SmartControl finished initializing!');
   }
